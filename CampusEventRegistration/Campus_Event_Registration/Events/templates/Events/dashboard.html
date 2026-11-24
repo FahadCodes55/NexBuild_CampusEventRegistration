@@ -1,0 +1,583 @@
+<!DOCTYPE html>
+{% load static %}
+
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>USKT Campus Events - Organizer Dashboard</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&family=Merriweather:wght@400;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="{% static 'Events/css/style.css' %}">
+</head>
+<body>
+
+    <div class="dashboard-wrapper">
+        <!-- DASHBOARD SIDEBAR -->
+        <aside class="dash-sidebar">
+            <div class="sidebar-header">
+               <img src="https://rbe.uskt.edu.pk/images/USKT_Logo.webp" alt="USKT Logo" class="logo-img">
+                <span class="logo-text" style="color: white;">Organizer<br><strong>Portal</strong></span>
+            </div>
+            
+            <!-- TABS -->
+            <ul class="sidebar-links">
+                <li class="active" onclick="switchTab('overview', this)">Overview</li>
+                <li onclick="switchTab('create', this)">Create Event</li>
+                <li onclick="switchTab('manage', this)">Manage Events</li>
+                <li onclick="switchTab('attendance', this)">Attendance</li>
+            </ul>
+            
+            <div class="sidebar-footer">
+                <a href="{% url 'home' %}">← Back to Student Site</a>
+            </div>
+        </aside>
+
+        <!-- DASHBOARD MAIN CONTENT -->
+        <main class="dash-main">
+            
+            <!-- OVERVIEW -->
+            <div id="tab-overview" class="tab-content active-tab">
+                <div class="dash-header">
+                    <h1>Dashboard Overview</h1>
+                    <button class="btn-accent" onclick="switchTab('create', document.querySelectorAll('.sidebar-links li')[1])">+ Create New Event</button>
+                </div>
+
+                <!-- Stats Row -->
+                <div class="stats-row">
+                    <div class="stat-card">
+                        <h3>Total Events</h3>
+                        <p>{{ my_events|length }}</p>
+                    </div>
+                    <div class="stat-card">
+                        <h3>Total Registrations</h3>
+                        <p>
+                            {% with total=0 %}
+                                {% for event in my_events %}
+                                    {{ event.confirmed_count|add:total }}
+                                {% endfor %}
+                            {% endwith %}
+                        </p>
+                    </div>
+                    <div class="stat-card">
+                        <h3>Upcoming Events</h3>
+                        <p>{{ my_events|length }}</p>
+                    </div>
+                </div>
+
+                <!-- Recent Events Table -->
+                <h3 class="section-subtitle">Recent Events</h3>
+                <div class="table-container">
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            <th>Event Title</th>
+                            <th>Date</th>
+                            <th>Status</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for event in my_events %}
+                        <tr>
+                            <td>{{ event.name }}</td>
+                            <td>{{ event.start_at_datetime|date:"M d, Y" }}</td>
+                            <td>
+                                {% if event.status == 'published' %}
+                                    <span class="badge status-open">Published</span>
+                                {% elif event.status == 'draft' %}
+                                    <span class="badge" style="background: #f3f4f6; color: #4b5563;">Draft</span>
+                                {% elif event.status == 'closed' %}
+                                    <span class="badge status-full">Closed</span>
+                                {% else %}
+                                    <span class="badge" style="background: #6b7280; color: white;">Cancelled</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                <a class="action-link" href="#">Edit</a> |
+                                <a class="action-link" style="color: var(--color-accent);"
+                                   href="/api/event/{{ event.id }}/close/">Close Registration</a>
+                            </td>
+                        </tr>
+                        {% empty %}
+                        <tr>
+                            <td colspan="4" style="text-align: center; padding: 20px; color: #6b7280;">
+                                No events to manage yet.
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+                </div>
+            </div>
+
+            <!-- TAB 2: CREATE EVENT FORM -->
+            <div id="tab-create" class="tab-content">
+                <div class="dash-header">
+                    <h1>Create New Event</h1>
+                </div>
+
+                <div class="form-card">
+                <form id="createEventForm" onsubmit="event.preventDefault(); publishNewEvent();">
+                    {% csrf_token %}
+
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>Event Title</label>
+                            <input type="text" id="evtName" placeholder="e.g., Annual Tech Hackathon" required>
+                        </div>
+                        <div class="form-group">
+                            <label>Category</label>
+                            <select id="evtCategory" required>
+                                <option value="">Select Category</option>
+                                <option value="1">Technology</option>
+                                <option value="2">Sports</option>
+                                <option value="3">Cultural</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group" style="grid-column: 1 / -1;">
+                            <label>Event Banner Image</label>
+                            <input type="file" id="evtImage" accept="image/*" style="padding: 10px; background: white; border: 1px solid var(--color-border); border-radius: var(--radius-btn);">
+                            <small style="color: var(--color-text-muted); font-size: 12px; margin-top: 4px; display: block;">
+                                Recommended: 1200×600px JPG or PNG. Max size 5MB. Optional.
+                            </small>
+                        </div>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>Start Date & Time</label>
+                            <input type="datetime-local" id="evtStart" required>
+                        </div>
+                        <div class="form-group">
+                            <label>End Date & Time</label>
+                            <input type="datetime-local" id="evtEnd" required>
+                        </div>
+                    </div>
+
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>Location / Venue</label>
+                            <input type="text" id="evtLocation" placeholder="e.g., Main Auditorium" required>
+                        </div>
+                        <div class="form-group">
+                            <label>Campus</label>
+                            <select id="evtCampus" required>
+                                <option value="main">Main Campus</option>
+                                <option value="iqbal">Iqbal Campus</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>Total Capacity (Seats)</label>
+                            <input type="number" id="evtSeats" placeholder="e.g., 100" required min="1">
+                        </div>
+                        <div class="form-group">
+                            <label>Registration Deadline</label>
+                            <input type="datetime-local" id="evtDeadline" required>
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Event Description</label>
+                        <textarea id="evtDescription" rows="4" placeholder="Provide details about the event, rules, and schedule..." required></textarea>
+                    </div>
+
+                    <div class="form-actions">
+                        <button type="button" class="btn-outline" onclick="switchTab('overview', document.querySelectorAll('.sidebar-links li')[0])">Cancel</button>
+                        <button type="submit" id="publishBtn" class="btn-primary">Publish Event</button>
+                    </div>
+                </form>
+            </div>
+            </div>
+
+            <!-- MANAGE EVENTS -->
+            <div id="tab-manage" class="tab-content">
+                <div class="dash-header">
+                    <h1>Manage Events</h1>
+                    <button class="btn-accent" onclick="switchTab('create', document.querySelectorAll('.sidebar-links li')[1])">
+                        + Create New Event
+                    </button>
+                </div>
+
+                <div class="table-container">
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th>Event Title</th>
+                                <th>Date</th>
+                                <th>Capacity</th>
+                                <th>Status</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                                {% for event in my_events %}
+                            <tr>
+                                <td>{{ event.name }}</td>
+                                <td>{{ event.start_at_datetime|date:"M d, Y" }}</td>
+                                <td>{{ event.confirmed_count }} / {{ event.seats }}</td>
+                                <td>
+                                    {% if event.status == 'published' %}
+                                        <span class="badge status-full">Published</span>
+                                     {% elif event.status == 'draft' %}
+                                        <span class="badge" style="background: #f3f4f6; color: #4b5563;">Draft</span>
+                                    {% elif event.status == 'closed' %}
+                                        <span class="badge status-full">Closed</span>
+                                    {% elif event.status == 'cancelled' %}
+                                        <span class="badge" style="background: #6b7280; color: white;">Cancelled</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    <a class="action-link"
+                           href="#"
+                           onclick="editEvent({{ event.id }}); return false;">
+                           Edit
+                        </a>
+                        |
+                        {% if event.status == 'published' %}
+                            <!-- Close Registration -->
+                            <a class="action-link"
+                               href="#"
+                               style="color: var(--color-accent);"
+                               onclick="closeRegistration({{ event.id }}); return false;">
+                               Close Registration
+                            </a>
+                        {% elif event.status == 'draft' %}
+                            <!-- Publish draft -->
+                            <a class="action-link"
+                               href="#"
+                               style="color: #166534;"
+                               onclick="publishEvent({{ event.id }}); return false;">
+                               Publish
+                            </a>
+                            {% elif event.status == 'closed' %}
+                                <span style="color: #6b7280; font-size: 13px;">🔒 Closed</span>
+                            {% endif %}
+                            </td>
+                            </tr>
+                            {% empty %}
+                            <tr>
+                                <td colspan="5" style="text-align: center; padding: 30px; color: #6b7280;">
+                                    <div style="font-size: 40px; margin-bottom: 10px;">📭</div>
+                                    <strong>No events yet</strong><br>
+                                    Click "+ Create New Event" to publish your first event.
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            <!-- ATTENDANCE -->
+<div id="tab-attendance" class="tab-content">
+    <div class="dash-header">
+        <h1>Attendance Management</h1>
+    </div>
+
+    <!-- Select Event -->
+    <div class="form-card" style="margin-bottom: 20px; padding: 15px 25px;">
+        <div class="form-group" style="margin-bottom: 0;">
+            <label style="margin-bottom: 5px;">Select Event to View Attendance</label>
+            <select id="attendanceEventSelect" onchange="loadAttendance()">
+                <option value="">-- Choose an event --</option>
+                {% for event in my_events %}
+                <option value="{{ event.id }}">
+                    {{ event.name }} ({{ event.start_at_datetime|date:"M d, Y" }})
+                </option>
+                {% endfor %}
+            </select>
+        </div>
+    </div>
+
+            <!-- Empty state (shown when no event is selected) -->
+            <div id="attendanceEmptyState" style="text-align: center; padding: 60px 20px; background: white; border-radius: 8px; border: 1px dashed #d1d5db;">
+                <div style="font-size: 48px; margin-bottom: 10px;">👆</div>
+                <h3 style="color: var(--color-text-muted);">Select an event above to view attendance</h3>
+            </div>
+
+            <!-- Attendance content (hidden initially) -->
+            <div id="attendanceContent" style="display: none;">
+
+                <!-- Stats -->
+                <div class="stats-row">
+                    <div class="stat-card" style="border-left-color: #166534;">
+                        <h3>Confirmed</h3>
+                        <p id="statConfirmed">0</p>
+                    </div>
+                    <div class="stat-card" style="border-left-color: var(--color-highlight);">
+                        <h3>Waitlisted</h3>
+                        <p id="statWaitlisted">0</p>
+                    </div>
+                    <div class="stat-card" style="border-left-color: #6b7280;">
+                        <h3>Checked In</h3>
+                        <p id="statCheckedIn">0</p>
+                    </div>
+                </div>
+
+                <!-- Attendee List -->
+                <div class="table-container">
+                    <div class="table-header-actions">
+                        <input type="text" id="attendeeSearch" placeholder="Search student name or roll number..." class="search-table" oninput="filterAttendees()">
+                    </div>
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th>Student Name</th>
+                                <th>Roll Number</th>
+                                <th>Email</th>
+                                <th>Status</th>
+                                <th>Action</th>
+                            </tr>
+                        </thead>
+                        <tbody id="attendeeTableBody">
+                            <tr><td colspan="5" style="text-align:center; padding:20px;">Loading...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+        </main>
+    </div>
+
+    <!-- JAVASCRIPT FOR TAB SWITCHING -->
+    <script>
+    function switchTab(tabId, element) {
+        const tabs = document.querySelectorAll('.tab-content');
+        tabs.forEach(tab => tab.classList.remove('active-tab'));
+        document.getElementById('tab-' + tabId).classList.add('active-tab');
+        const links = document.querySelectorAll('.sidebar-links li');
+        links.forEach(link => link.classList.remove('active'));
+        element.classList.add('active');
+    }
+
+    function publishNewEvent() {
+    const btn = document.getElementById('publishBtn');
+    btn.disabled = true;
+    btn.innerHTML = "Publishing...";
+
+    const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]').value;
+
+    const formData = new FormData();
+    formData.append('name', document.getElementById('evtName').value);
+    formData.append('description', document.getElementById('evtDescription').value);
+    formData.append('location', document.getElementById('evtLocation').value);
+    formData.append('campus', document.getElementById('evtCampus').value);
+    formData.append('seats', document.getElementById('evtSeats').value);
+    formData.append('start_at_datetime', document.getElementById('evtStart').value);
+    formData.append('end_at_datetime', document.getElementById('evtEnd').value);
+    formData.append('registration_deadline', document.getElementById('evtDeadline').value);
+    formData.append('status', 'published');
+
+    const categoryId = document.getElementById('evtCategory').value;
+    if (categoryId) {
+        formData.append('categories', categoryId);
+    }
+
+    const imageFile = document.getElementById('evtImage').files[0];
+    if (imageFile) {
+        formData.append('image', imageFile);
+    }
+
+    fetch('/api/events/', {
+        method: 'POST',
+        headers: { 'X-CSRFToken': csrfToken },
+        body: formData
+    })
+    .then(r => r.json().then(data => ({ status: r.status, body: data })))
+    .then(res => {
+        if (res.status === 201) {
+            alert("✅ Event created successfully!");
+            window.location.reload();
+        } else {
+            console.error(res.body);
+            alert("❌ Error: " + JSON.stringify(res.body));
+            btn.disabled = false;
+            btn.innerHTML = "Publish Event";
+        }
+    })
+    .catch(err => {
+        alert("Network error: " + err);
+        btn.disabled = false;
+        btn.innerHTML = "Publish Event";
+    });
+}
+
+function closeRegistration(eventId) {
+    if (!confirm("Are you sure you want to close registration for this event?\n\nStudents will not be able to register anymore.")) {
+        return;
+    }
+
+    const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]').value;
+
+    fetch(`/api/event/${eventId}/`, {
+        method: 'PATCH',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': csrfToken
+        },
+        body: JSON.stringify({ status: 'closed' })
+    })
+    .then(r => r.json().then(d => ({ status: r.status, body: d })))
+    .then(res => {
+        if (res.status === 200) {
+            alert("✅ Registration closed.");
+            window.location.reload();
+        } else {
+            alert("❌ Error: " + JSON.stringify(res.body));
+        }
+    })
+    .catch(err => {
+        alert("Network error: " + err);
+    });
+}
+
+function publishEvent(eventId) {
+    if (!confirm("Publish this event? It will be visible to all students on the homepage.")) {
+        return;
+    }
+
+    const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]').value;
+
+    fetch(`/api/event/${eventId}/`, {
+        method: 'PATCH',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': csrfToken
+        },
+        body: JSON.stringify({ status: 'published' })
+    })
+    .then(r => r.json().then(d => ({ status: r.status, body: d })))
+    .then(res => {
+        if (res.status === 200) {
+            alert("✅ Event published successfully.");
+            window.location.reload();
+        } else {
+            alert("❌ Error: " + JSON.stringify(res.body));
+        }
+    })
+    .catch(err => {
+        alert("Network error: " + err);
+    });
+}
+
+function editEvent(eventId) {
+    alert("Edit form for event #" + eventId + " will be built next.\n\nFor now, use the Django admin panel at /admin/api/events/" + eventId + "/change/");
+
+}
+
+let currentAttendees = [];  // global to allow search filtering
+
+function loadAttendance() {
+    const eventId = document.getElementById('attendanceEventSelect').value;
+
+    if (!eventId) {
+        document.getElementById('attendanceEmptyState').style.display = 'block';
+        document.getElementById('attendanceContent').style.display = 'none';
+        return;
+    }
+
+    document.getElementById('attendanceEmptyState').style.display = 'none';
+    document.getElementById('attendanceContent').style.display = 'block';
+    document.getElementById('attendeeTableBody').innerHTML =
+        '<tr><td colspan="5" style="text-align:center; padding:20px;">Loading...</td></tr>';
+
+    fetch(`/api/event/${eventId}/registrations/`)
+    .then(r => {
+        if (!r.ok) throw new Error(`HTTP error! status: ${r.status}`);
+        return r.json();
+    })
+    .then(data => {
+        console.log("Data received:", data); // Debug log
+
+        // Safely fall back to empty arrays/numbers if undefined
+        currentAttendees = data.attendees || [];
+
+        document.getElementById('statConfirmed').innerText = data.confirmed || 0;
+        document.getElementById('statWaitlisted').innerText = data.waitlisted || 0;
+        document.getElementById('statCheckedIn').innerText = data.checked_in || 0;
+
+        renderAttendees(currentAttendees);
+    })
+    .catch(err => {
+        console.error("Fetch error:", err);
+        document.getElementById('attendeeTableBody').innerHTML =
+            '<tr><td colspan="5" style="text-align:center; padding:20px; color:red;">Failed to load attendance. Check console.</td></tr>';
+    });
+}
+
+function renderAttendees(list) {
+    const tbody = document.getElementById('attendeeTableBody');
+
+    if (list.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="5" style="text-align:center; padding:30px; color:#6b7280;">No registrations yet for this event.</td></tr>';
+        return;
+    }
+
+    tbody.innerHTML = list.map(a => {
+        // Status badge
+        let statusBadge = '';
+        if (a.status === 'confirmed') statusBadge = '<span class="badge status-open">Confirmed</span>';
+        else if (a.status === 'waitlisted') statusBadge = '<span class="badge" style="background:#fffbeb; color:#92400e;">Waitlisted</span>';
+        else if (a.status === 'attended') statusBadge = '<span class="badge" style="background:#dcfce7; color:#166534;">Attended</span>';
+        else if (a.status === 'cancelled') statusBadge = '<span class="badge" style="background:#6b7280; color:white;">Cancelled</span>';
+        else statusBadge = `<span class="badge">${a.status}</span>`;
+
+        // Action button
+        let action = '';
+        if (a.status === 'confirmed') {
+            action = `<button class="btn-checkin" onclick="checkIn(${a.id})">Check In</button>`;
+        } else if (a.status === 'attended') {
+            action = `<span style="color:#166534; font-weight:600;">✅ Attended</span>`;
+        } else if (a.status === 'waitlisted') {
+            action = `<span style="color:#6b7280; font-size:13px;">Awaiting seat</span>`;
+        }
+
+        return `
+            <tr>
+                <td>${a.full_name}</td>
+                <td>${a.roll_number}</td>
+                <td>${a.university_email}</td>
+                <td>${statusBadge}</td>
+                <td>${action}</td>
+            </tr>
+        `;
+    }).join('');
+}
+
+function filterAttendees() {
+    const q = document.getElementById('attendeeSearch').value.toLowerCase();
+    const filtered = currentAttendees.filter(a =>
+        a.full_name.toLowerCase().includes(q) ||
+        a.roll_number.toLowerCase().includes(q) ||
+        a.university_email.toLowerCase().includes(q)
+    );
+    renderAttendees(filtered);
+}
+
+function checkIn(registrationId) {
+    const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]').value;
+
+    fetch(`/api/registration/${registrationId}/check-in/`, {
+        method: 'POST',
+        headers: { 'X-CSRFToken': csrfToken }
+    })
+    .then(r => r.json().then(d => ({ status: r.status, body: d })))
+    .then(res => {
+        if (res.status === 200) {
+            // Reload attendance
+            loadAttendance();
+        } else {
+            alert("❌ Error: " + (res.body.error || "Could not check in."));
+        }
+    })
+    .catch(err => {
+        alert("Network error.");
+        console.error(err);
+    });
+}
+</script>
+</body>
+</html>

@@ -1,0 +1,161 @@
+{% extends "Events/base.html" %}
+
+{% block title%} University of Sialkot - Event Summary {% endblock %}
+
+{% block nav %}{% endblock %}
+
+    <!-- EVENT DETAILS MAIN CONTENT -->
+    {% block main %}
+    <main class="container" style="padding-top: 40px; padding-bottom: 60px;">
+        <a href="{% url 'home' %}" style="color: var(--color-text-muted); font-size: 14px; font-weight: 600; margin-bottom: 20px; display: inline-block;">← Back to Events</a>
+
+        <div class="detail-layout">
+            <div class="detail-main">
+                <div class="detail-banner">
+                    {% if event_detail.image %}
+                        <img src="{{ event_detail.image.url }}" alt="{{ event_detail.name }}" style="width: 100%; height: 100%; object-fit: cover; border-radius: var(--radius-card);">
+                    {% else %}
+                        <img src="https://via.placeholder.com/400x300?text=No+Image" alt="No Image">
+                    {% endif %}
+                </div>
+                <span class="badge category-tech">
+                    {% for category in event_detail.categories.all %}
+                        {{ category.name }}{% if not forloop.last %}, {% endif %}
+                    {% empty %}
+                        Uncategorized
+                    {% endfor %}
+                </span>
+                <h1>{{ event_detail.name }}</h1>
+                <p class="detail-organizer">{{ event_detail.department }}</p>
+                <p class="meta" style="font-size: 16px; margin-bottom: 10px;">📍 {{ event_detail.location }}</p>
+                <p class="meta" style="font-size: 16px;">📅 {{ event_detail.start_at_datetime }} - {{ event_detail.end_at_datetime }}</p>
+                
+                <h3 style="margin-top: 30px; color: var(--color-primary);">About this Event</h3>
+                <p class="description">{{ event_detail.description }}</p>
+
+            </div>
+
+            <div class="detail-sidebar">
+                <div class="status-card">
+                    <h4>Registration Status</h4>
+                    <div class="status-row">
+                        <span>Status:</span> <span class="text-success">{{ event_detail.status }}</span>
+                    </div>
+                    <div class="status-row">
+                        <span>Available Seats:</span> <strong>{{ event_detail.seats }}</strong>
+                    </div>
+                    <div class="status-row">
+                        <span>Closes:</span> <span>{{ event_detail.registration_deadline }}</span>
+                    </div>
+                    <button class="btn-primary full-width" onclick="openModal()">Register Now</button>
+                    <p class="policy-text">Free cancellation up to {{ event_detail.cancellation_window_hours }} before the event.</p>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <div id="registrationModal" class="modal-overlay">
+    <div class="modal-content">
+        <span class="close-btn" onclick="closeModal()">&times;</span>
+        
+        <h2 style="color: var(--color-primary); margin-bottom: 5px;">Confirm Registration</h2>
+        <p style="color: var(--color-text-muted); font-size: 14px; margin-bottom: 20px;">Please provide your details to secure your seat.</p>
+
+        <form onsubmit="event.preventDefault();">
+            {% csrf_token %}
+            <!-- Student Details -->
+            <div class="form-group">
+                <label for="studentName">Full Name</label>
+                <input type="text" name="full_name" id="studentName" placeholder="e.g., Ali Khan" required>
+            </div>
+            <div class="form-group">
+                <label for="studentRoll">Roll Number</label>
+                <input type="text" name="roll_number" id="studentRoll" placeholder="e.g., BSCS-2026-001" required>
+            </div>
+            <div class="form-group">
+                <label for="studentEmail">University Email</label>
+                <input type="email" name="university_email" id="studentEmail" placeholder="e.g., student@uskt.edu.pk" required>
+            </div>
+
+            <!-- Important Rules -->
+            <div class="alert-box" style="margin-bottom: 20px;">
+                <strong>Note:</strong> By registering, you agree to the cancellation policy. You can cancel up to 48 hours before the event. If you do not attend, you may be restricted from future events.
+            </div>
+
+                <button type="button" id="confirmSeatBtn" class="btn-primary full-width" onclick="submitRegistration()">
+                    Confirm Seat
+                </button>
+        </form>
+    </div>
+</div>
+{% endblock %}
+
+
+    {% block script %}
+    function openModal() {
+        document.getElementById('registrationModal').style.display = 'flex';
+    }
+
+    function closeModal() {
+        document.getElementById('registrationModal').style.display = 'none';
+    }
+
+    window.onclick = function(event) {
+        const modal = document.getElementById('registrationModal');
+        if (event.target == modal) {
+            closeModal();
+        }
+    }
+
+    function submitRegistration() {
+    const btn = document.getElementById('confirmSeatBtn');
+    const originalText = btn.innerHTML;
+    btn.innerHTML = "Processing...";
+    btn.disabled = true;
+
+    const formData = {
+        full_name: document.getElementById('studentName').value,
+        roll_number: document.getElementById('studentRoll').value,
+        university_email: document.getElementById('studentEmail').value,
+    };
+
+    const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]').value;
+
+    fetch('/api/event/{{ event_detail.id }}/register/', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': csrfToken
+        },
+        body: JSON.stringify(formData)
+    })
+    .then(response => response.json().then(data => ({ status: response.status, body: data })))
+    .then(res => {
+        if (res.status === 201) {
+            document.querySelector('.modal-content').innerHTML = `
+                <div style="text-align: center; padding: 20px 0;">
+                    <div style="font-size: 60px; margin-bottom: 15px;">✅</div>
+                    <h2 style="color: var(--color-primary);">${res.body.message}</h2>
+                    <p style="color: var(--color-text-muted); margin: 15px 0;">Status: <strong>${res.body.status}</strong></p>
+                    <a href="{% url 'ticket' %}" class="btn-primary" style="display:block; margin-top:15px; text-decoration:none;">Go to My Tickets</a>
+                </div>
+            `;
+        } else {
+            document.querySelector('.modal-content').innerHTML = `
+                <div style="text-align: center; padding: 20px 0;">
+                    <div style="font-size: 60px; margin-bottom: 15px;">❌</div>
+                    <h2 style="color: var(--color-primary);">Registration Failed</h2>
+                    <p style="color: var(--color-accent); margin: 15px 0; font-weight: 600;">${res.body.error || "Something went wrong."}</p>
+                    <button class="btn-primary" onclick="window.location.reload()" style="margin-top: 15px;">Try Again</button>
+                </div>
+            `;
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert("A network error occurred.");
+        btn.innerHTML = originalText;
+        btn.disabled = false;
+    });
+}
+{% endblock %}

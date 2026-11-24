@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+{% load static %}
+<html lang="en">
+<head>
+   <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title> {% block title%} University of Sialkot - Events {% endblock %} </title>
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&family=Merriweather:wght@400;700&display=swap" rel="stylesheet">
+    <!-- External CSS -->
+    <link rel="stylesheet" href="{% static 'Events/css/style.css' %}">
+    <style>{% block extra_css %}{% endblock %}</style>
+</head>
+<body>
+
+<!-- GLOBAL NAVIGATION -->
+    <header class="navbar">
+        <div class="container nav-container">
+            <!-- Logo -->
+            <div class="logo">
+                <img src="https://rbe.uskt.edu.pk/images/USKT_Logo.webp" alt="USKT Logo" class="logo-img">
+                <span class="logo-text">UNIVERSITY OF<br><strong>SIALKOT</strong></span>
+            </div>
+
+            <!-- Mobile Menu Checkbox Hack -->
+            <input type="checkbox" id="menu-toggle" class="menu-toggle">
+            <label for="menu-toggle" class="hamburger">☰</label>
+
+            <!-- Navigation Menu -->
+            <nav class="nav-menu">
+                <div class="nav-links">
+                    <a href="{% url 'home' %}" class="nav-item active">Home</a>
+                    <div class="dropdown">
+                        <a href="#" class="nav-item">Campus Events ▾</a>
+                        <div class="dropdown-content">
+                              <a href="{% url 'home' %}?campus=main">Main Campus</a>
+                              <a href="{% url 'home' %}?campus=iqbal">Iqbal Campus</a>
+                        </div>
+                    </div>
+                    <a href="{% url 'ticket' %}" class="nav-item">My Tickets</a>
+                </div>
+                <div class="nav-auth">
+                    {% if user.is_authenticated %}
+                    <span style="margin-right: 10px; font-weight: 600;">Hi, {{ user.first_name|default:user.username }}</span>
+                    <a href="{% url 'logout' %}" class="btn-login">Logout</a>
+                    {% else %}
+                        <a href="{% url 'login' %}" class="btn-login">Login</a>
+                    {% endif %}
+                </div>
+            </nav>
+        </div>
+        <div class="nav-bottom-border"></div>
+    </header>
+
+
+{% block content %} {% endblock %}
+
+{% block main %} {% endblock %}
+
+<script>{% block script %} {% endblock %}</script>
+
+ <footer class="footer">
+        <div class="container">
+            <p>© 2026 University of Sialkot. All rights reserved.</p>
+        </div>
+ </footer>
+
+</body>
+</html>

@@ -1,0 +1,116 @@
+{% extends "Events/base.html" %}
+
+{% block title%} University of Sialkot - My Tickets {% endblock %}
+
+{% block nav %}{% endblock %}
+
+    <!-- MY TICKETS MAIN CONTENT -->
+    {% block main %}
+    <main class="container tickets-wrapper">
+    <div class="page-header">
+        <h1>My Registered Events</h1>
+        <p>Manage your registrations, view tickets, or cancel your seat.</p>
+    </div>
+
+    <div class="tickets-grid">
+        {% for ticket in tickets %}
+        <div class="ticket-card">
+            <!-- Status badge (confirmed / waitlisted / cancelled) -->
+            <div class="ticket-status {{ ticket.status }}">
+                {{ ticket.get_status_display }}
+            </div>
+
+            <div class="ticket-content">
+                <!-- Categories (ManyToMany) -->
+                <span class="badge category-tech">
+                    {% for cat in ticket.event.categories.all %}
+                        {{ cat.name }}{% if not forloop.last %}, {% endif %}
+                    {% endfor %}
+                </span>
+
+                <h3>{{ ticket.event.name }}</h3>
+                <p class="meta">📍 {{ ticket.event.location }}, {{ ticket.event.campus }} Campus</p>
+                <p class="meta">📅 Registered on: {{ ticket.registered_at|date:"M d, Y" }}</p>
+                <p class="meta">🗓 Event Date: {{ ticket.event.start_at_datetime|date:"M d, Y - g:i A" }}</p>
+
+                <div class="ticket-divider"></div>
+
+                <div class="ticket-actions">
+                    <button class="btn-outline" style="width: auto;">View Ticket</button>
+
+                    <!-- Dynamic cancel button -->
+                    {% if ticket.event.is_cancellation_allowed %}
+                        <button class="btn-danger-outline"
+                                onclick="cancelRegistration({{ ticket.id }})">
+                            Cancel Registration
+                        </button>
+                    {% else %}
+                        <button class="btn-danger-outline" disabled
+                                title="Cannot cancel within 48 hours of event">
+                            Cancel (Closed)
+                        </button>
+                    {% endif %}
+                </div>
+
+                {% if not ticket.event.is_cancellation_allowed %}
+                    <p class="policy-text text-left" style="color: #dc2626; margin-top: 10px;">
+                        <em>* Cancellation window has closed for this event.</em>
+                    </p>
+                {% endif %}
+            </div>
+        </div>
+        {% empty %}
+            <div class="empty-state" style="text-align:center; padding: 40px;">
+                <h3>No tickets yet</h3>
+                <p>You haven't registered for any events. <a href="{% url 'home' %}">Browse events →</a></p>
+            </div>
+        {% endfor %}
+    </div>
+</main>
+{% endblock %}
+
+{% block script %}
+    function cancelRegistration(registrationId) {
+        if (!confirm("Are you sure you want to cancel this registration? This action cannot be undone.")) {
+            return;
+        }
+
+        // Get CSRF Token from the cookie (since we don't have a form here)
+        function getCookie(name) {
+            let cookieValue = null;
+            if (document.cookie && document.cookie !== '') {
+                const cookies = document.cookie.split(';');
+                for (let i = 0; i < cookies.length; i++) {
+                    const cookie = cookies[i].trim();
+                    if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                        cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                        break;
+                    }
+                }
+            }
+            return cookieValue;
+        }
+        const csrftoken = getCookie('csrftoken');
+
+        fetch(`/api/registration/${registrationId}/cancel/`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': csrftoken
+            }
+        })
+        .then(response => response.json().then(data => ({ status: response.status, body: data })))
+        .then(res => {
+            if (res.status === 200) {
+                alert("Success: " + res.body.message);
+                window.location.reload(); // Reload to show updated status
+            } else {
+                alert("Error: " + (res.body.error || "Could not cancel."));
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert("A network error occurred.");
+        });
+    }
+{% endblock %}
